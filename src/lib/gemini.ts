@@ -99,6 +99,17 @@ function buildDiscoursePrompts(input: GenerateTurnInput): {
   const { topic, activeSeat, allSeats, history, round, responseLength } = input;
   const enabledSeats = allSeats.filter((s) => s.enabled);
 
+  // Separate moderator/host guidance notes from spoken seat messages
+  const hostGuidanceMessages = history.filter((m) => m.role === 'moderator');
+  const latestHostGuidance =
+    hostGuidanceMessages.length > 0
+      ? hostGuidanceMessages[hostGuidanceMessages.length - 1].content
+      : null;
+
+  const spokenHistory = history.filter((m) => m.role !== 'moderator');
+  const currentMessageNumber = spokenHistory.length + 1;
+  const isFifthMessageAnchor = currentMessageNumber % 5 === 0;
+
   const lengthDirective =
     responseLength === 'concise'
       ? 'Keep it super short and punchy (35–65 words max): 1 quick reaction sentence followed by 2–3 short bullet points.'
@@ -119,10 +130,30 @@ function buildDiscoursePrompts(input: GenerateTurnInput): {
     })
     .join('\n');
 
+  const hostPriorityBlock = latestHostGuidance
+    ? `ACTIVE TABLE HOST GUIDANCE (HIGHEST PRIORITY — MUST STEER YOUR RESPONSE):
+"${latestHostGuidance}"
+(All active host notes so far: ${hostGuidanceMessages.map((m) => `"${m.content}"`).join(' -> ')})`
+    : `ACTIVE TABLE HOST GUIDANCE:
+Follow the main Host Prompt Topic closely: "${topic}"`;
+
+  const fifthMessageDirective = isFifthMessageAnchor
+    ? `\nCRITICAL 5TH-MESSAGE CHECKPOINT (Message #${currentMessageNumber}):
+Because this is the ${currentMessageNumber}th spoken message at the table (every 5th message rule), you MUST strongly re-anchor the discussion to the Host Prompt Topic ("${topic}")${
+        latestHostGuidance ? ` and the Table Host Guidance ("${latestHostGuidance}")` : ''
+      }. Pull the table back from any narrow side-tangents, directly address the core host prompt, and connect the recent points directly to what the Host asked.`
+    : `\nHOST TOPIC ALIGNMENT:
+Always keep the Host Prompt Topic ("${topic}")${
+        latestHostGuidance ? ` and the Table Host Guidance ("${latestHostGuidance}")` : ''
+      } in consideration while responding, ensuring the conversation never drifts off-topic.`;
+
   const systemInstruction = `You are "${activeSeat.name}" sitting at Seat ${activeSeat.id} of "Dining Table AI", a lively dinner-table debate.
 
-DEBATE TOPIC:
+MAIN HOST PROMPT TOPIC:
 "${topic}"
+
+${hostPriorityBlock}
+${fifthMessageDirective}
 
 PEOPLE AT THE TABLE (You only know what others say out loud, NOT their internal thoughts or hidden personas):
 ${rosterDescription}
@@ -131,51 +162,69 @@ YOUR PRIVATE THINKING STYLE & STANCE (Known ONLY to you):
 ${effectivePersona}
 
 HOW TO SPEAK & FORMAT YOUR RESPONSE:
-1. USE PLAIN LAYMAN'S ENGLISH: Talk like a sharp, everyday person at a dinner table. Avoid big academic words, jargon, or stiff essay language. Use simple, relatable examples.
-2. BE BRIEF & LESS VERBOSE: Cut all fluff. Never say "Thank you", "That's a great point", or "As an AI". Jump straight into your point.
-3. USE BULLET POINTS OFTEN: Format the core of your response using short, easy-to-scan bullet points ("- ") so your arguments are quick to read.
-4. PRIORITIZE THE LAST 1–2 MESSAGES + TRACK DEVELOPING THREADS:
-   - Put most of your focus on directly reacting to the LAST 1–2 messages just spoken at the table.
-   - Keep earlier messages in mind so you don't repeat points, and only reach back to an earlier message if you are continuing a developing line of reasoning or calling out a contradiction.
-5. Speak in the first person as ${activeSeat.name}. Do NOT prefix your response with your name or "[Seat ${activeSeat.id}]:".
-6. ${lengthDirective}`;
+1. TABLE HOST PRIORITY: Table Host Guidance and the Host Prompt Topic always take top priority in steering what you discuss. Every seat must keep the host topic in mind on every turn${
+    isFifthMessageAnchor
+      ? ', and since this is a 5th-message checkpoint, you MUST strongly center your response on the host prompt topic and guidance!'
+      : '.'
+  }
+2. USE PLAIN LAYMAN'S ENGLISH: Talk like a sharp, everyday person at a dinner table. Avoid big academic words, jargon, or stiff essay language. Use simple, relatable examples.
+3. BE BRIEF & LESS VERBOSE: Cut all fluff. Never say "Thank you", "That's a great point", or "As an AI". Jump straight into your point.
+4. USE BULLET POINTS OFTEN: Format the core of your response using short, easy-to-scan bullet points ("- ") so your arguments are quick to read.
+5. PRIORITIZE THE LAST 1–2 MESSAGES + TRACK DEVELOPING THREADS:
+   - Put most of your focus on directly reacting to the LAST 1–2 messages just spoken at the table (and any Table Host Guidance).
+   - Keep earlier messages in mind so you don't repeat points, and reach back to an earlier message when continuing a developing line of reasoning.
+6. Speak in the first person as ${activeSeat.name}. Do NOT prefix your response with your name or "[Seat ${activeSeat.id}]:".
+7. ${lengthDirective}`;
 
   let transcriptSection = '';
   if (history.length === 0) {
     transcriptSection =
-      '(No one has spoken yet. Kick off Round 1 with a short, plain-English take and 2–3 bullet points!)';
+      '(No one has spoken yet. Kick off Round 1 by directly addressing the Host Prompt Topic in plain layman’s English with 2–3 bullet points!)';
   } else {
-    const recentCount = Math.min(2, history.length);
-    const earlierMessages = history.slice(0, history.length - recentCount);
-    const latestMessages = history.slice(history.length - recentCount);
+    const recentCount = Math.min(2, spokenHistory.length);
+    const earlierMessages = spokenHistory.slice(0, spokenHistory.length - recentCount);
+    const latestMessages = spokenHistory.slice(spokenHistory.length - recentCount);
 
-    const formatMsg = (msg: DiscourseMessage) => {
-      if (msg.role === 'moderator') {
-        return `[Table Host / Moderator Guidance]: ${msg.content}`;
-      }
-      return `[Round ${msg.round} · ${msg.speakerName} (Seat ${msg.seatId})]:\n${msg.content}`;
-    };
+    const formatMsg = (msg: DiscourseMessage) =>
+      `[Round ${msg.round} · ${msg.speakerName} (Seat ${msg.seatId})]:\n${msg.content}`;
 
     const earlierBlock =
       earlierMessages.length > 0
-        ? `EARLIER SPOKEN MESSAGES AT THE TABLE (Keep in mind for context & developing lines of reasoning):\n${earlierMessages
+        ? `EARLIER SPOKEN MESSAGES AT THE TABLE (Context & developing lines of reasoning):\n${earlierMessages
             .map(formatMsg)
             .join('\n\n')}\n\n`
         : '';
 
-    const latestBlock = `LAST ${latestMessages.length} SPOKEN MESSAGE(S) (Put your primary focus on responding to these!):\n${latestMessages
-      .map(formatMsg)
-      .join('\n\n')}`;
+    const latestBlock =
+      latestMessages.length > 0
+        ? `LAST ${latestMessages.length} SPOKEN MESSAGE(S) (Put primary focus on these while honoring Host Guidance):\n${latestMessages
+            .map(formatMsg)
+            .join('\n\n')}`
+        : '';
 
     transcriptSection = `${earlierBlock}${latestBlock}`;
   }
 
-  const userPrompt = `CURRENT ROUND: Round ${round}
-TOPIC: "${topic}"
-
+  const userPrompt = `CURRENT ROUND: Round ${round} · Spoken Message #${currentMessageNumber}${
+    isFifthMessageAnchor ? ' (🎯 5th-Message Host Topic Re-Anchor Turn!)' : ''
+  }
+HOST PROMPT TOPIC: "${topic}"
+${
+  latestHostGuidance
+    ? `PRIORITY TABLE HOST GUIDANCE (MUST FOLLOW): "${latestHostGuidance}"\n`
+    : ''
+}
 ${transcriptSection}
 
-Your turn as ${activeSeat.name} (Seat ${activeSeat.id}). Reply in plain layman's terms using short bullet points:`;
+${
+  isFifthMessageAnchor
+    ? `IMPORTANT (5th Message Rule): Strongly consider and re-center the discussion around the Host Prompt Topic ("${topic}")${
+        latestHostGuidance ? ` and Table Host Guidance ("${latestHostGuidance}")` : ''
+      } while responding to the recent turns.\n`
+    : `Remember: Keep the Host Prompt Topic ("${topic}")${
+        latestHostGuidance ? ` and Table Host Guidance ("${latestHostGuidance}")` : ''
+      } in consideration as you respond.\n`
+}Your turn as ${activeSeat.name} (Seat ${activeSeat.id}). Reply in plain layman's terms using short bullet points:`;
 
   return { systemInstruction, userPrompt };
 }

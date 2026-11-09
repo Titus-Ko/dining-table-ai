@@ -134,6 +134,7 @@ export default function DiningTablePage() {
         throw new Error(data.error || `Request failed with status ${response.status}`);
       }
 
+      const spokenSoFar = messages.filter((m) => m.role !== 'moderator').length;
       const newMsg: DiscourseMessage = {
         id: `${Date.now()}-seat-${activeSeat.id}`,
         seatId: activeSeat.id,
@@ -143,7 +144,7 @@ export default function DiningTablePage() {
         actualModel: data.actualModel || activeSeat.model,
         personaUsed: activeSeat.persona.trim() || activeSeat.defaultPersonaHint,
         round: currentRound,
-        turnIndex: messages.length + 1,
+        turnIndex: spokenSoFar + 1,
         content: data.content,
         timestamp: Date.now(),
         latencyMs: data.latencyMs,
@@ -226,13 +227,14 @@ export default function DiningTablePage() {
     if (!trimmed) return;
 
     if (isHumanTurn && activeSeat) {
+      const spokenSoFar = messages.filter((m) => m.role !== 'moderator').length;
       const humanMsg: DiscourseMessage = {
         id: `${Date.now()}-human-${activeSeat.id}`,
         seatId: activeSeat.id,
         speakerName: activeSeat.name,
         role: 'human',
         round: currentRound,
-        turnIndex: messages.length + 1,
+        turnIndex: spokenSoFar + 1,
         content: trimmed,
         timestamp: Date.now(),
         accentColor: activeSeat.accentColor,
@@ -834,13 +836,26 @@ export default function DiningTablePage() {
                                 color: '#fbbf24',
                               }}
                             >
-                              📣 Host Note
+                              📣 Priority Host Guidance
+                            </span>
+                          )}
+                          {msg.role !== 'moderator' && msg.turnIndex % 5 === 0 && (
+                            <span
+                              className={styles.modelPill}
+                              style={{
+                                background: 'rgba(245, 158, 11, 0.18)',
+                                color: '#fde68a',
+                                borderColor: 'rgba(245, 158, 11, 0.45)',
+                              }}
+                              title="Every 5th message strongly re-anchors to the Host Prompt Topic and Table Host Guidance"
+                            >
+                              🎯 5th-Msg Host Topic Focus
                             </span>
                           )}
                         </div>
 
                         <span className={styles.timeMeta}>
-                          Turn #{msg.turnIndex}
+                          {msg.role === 'moderator' ? 'Host Steering' : `Msg #${msg.turnIndex}`}
                           {msg.latencyMs ? ` · ${(msg.latencyMs / 1000).toFixed(1)}s` : ''}
                         </span>
                       </div>
