@@ -839,7 +839,7 @@ export default function DiningTablePage() {
                               📣 Priority Host Guidance
                             </span>
                           )}
-                          {msg.role !== 'moderator' && msg.turnIndex % 5 === 0 && (
+                          {msg.role !== 'moderator' && (msg.turnIndex <= 4 || msg.turnIndex % 5 === 0) && (
                             <span
                               className={styles.modelPill}
                               style={{
@@ -847,9 +847,11 @@ export default function DiningTablePage() {
                                 color: '#fde68a',
                                 borderColor: 'rgba(245, 158, 11, 0.45)',
                               }}
-                              title="Every 5th message strongly re-anchors to the Host Prompt Topic and Table Host Guidance"
+                              title="Opening 4 messages and every 5th message strongly focus on the Host Prompt Topic and Table Host Guidance"
                             >
-                              🎯 5th-Msg Host Topic Focus
+                              {msg.turnIndex <= 4
+                                ? '🎯 Opening Host Topic Focus'
+                                : '🎯 5th-Msg Host Topic Focus'}
                             </span>
                           )}
                         </div>

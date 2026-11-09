@@ -108,7 +108,9 @@ function buildDiscoursePrompts(input: GenerateTurnInput): {
 
   const spokenHistory = history.filter((m) => m.role !== 'moderator');
   const currentMessageNumber = spokenHistory.length + 1;
+  const isOpeningFour = currentMessageNumber <= 4;
   const isFifthMessageAnchor = currentMessageNumber % 5 === 0;
+  const isStrongHostFocusTurn = isOpeningFour || isFifthMessageAnchor;
 
   const lengthDirective =
     responseLength === 'concise'
@@ -137,7 +139,12 @@ function buildDiscoursePrompts(input: GenerateTurnInput): {
     : `ACTIVE TABLE HOST GUIDANCE:
 Follow the main Host Prompt Topic closely: "${topic}"`;
 
-  const fifthMessageDirective = isFifthMessageAnchor
+  const fifthMessageDirective = isOpeningFour
+    ? `\nCRITICAL OPENING ROUND RULE (Message #${currentMessageNumber} of First 4):
+Because this is one of the FIRST 4 MESSAGES at the table, you MUST heavily focus on directly answering the core Host Prompt Topic ("${topic}")${
+        latestHostGuidance ? ` and the Table Host Guidance ("${latestHostGuidance}")` : ''
+      }. Do NOT drift onto a side tangent from the previous speaker—give your seat's direct, plain-English take on the Host Prompt Topic while briefly reacting to the last speaker.`
+    : isFifthMessageAnchor
     ? `\nCRITICAL 5TH-MESSAGE CHECKPOINT (Message #${currentMessageNumber}):
 Because this is the ${currentMessageNumber}th spoken message at the table (every 5th message rule), you MUST strongly re-anchor the discussion to the Host Prompt Topic ("${topic}")${
         latestHostGuidance ? ` and the Table Host Guidance ("${latestHostGuidance}")` : ''
@@ -163,8 +170,8 @@ ${effectivePersona}
 
 HOW TO SPEAK & FORMAT YOUR RESPONSE:
 1. TABLE HOST PRIORITY: Table Host Guidance and the Host Prompt Topic always take top priority in steering what you discuss. Every seat must keep the host topic in mind on every turn${
-    isFifthMessageAnchor
-      ? ', and since this is a 5th-message checkpoint, you MUST strongly center your response on the host prompt topic and guidance!'
+    isStrongHostFocusTurn
+      ? ', and on this turn (First 4 Opening / 5th-Message Checkpoint) you MUST strongly center your response on the Host Prompt Topic and Host Guidance!'
       : '.'
   }
 2. USE PLAIN LAYMAN'S ENGLISH: Talk like a sharp, everyday person at a dinner table. Avoid big academic words, jargon, or stiff essay language. Use simple, relatable examples.
@@ -206,7 +213,11 @@ HOW TO SPEAK & FORMAT YOUR RESPONSE:
   }
 
   const userPrompt = `CURRENT ROUND: Round ${round} · Spoken Message #${currentMessageNumber}${
-    isFifthMessageAnchor ? ' (🎯 5th-Message Host Topic Re-Anchor Turn!)' : ''
+    isOpeningFour
+      ? ' (🎯 Opening 4 Messages — Strong Host Topic Focus!)'
+      : isFifthMessageAnchor
+      ? ' (🎯 5th-Message Host Topic Re-Anchor Turn!)'
+      : ''
   }
 HOST PROMPT TOPIC: "${topic}"
 ${
@@ -217,7 +228,11 @@ ${
 ${transcriptSection}
 
 ${
-  isFifthMessageAnchor
+  isOpeningFour
+    ? `IMPORTANT (Opening 4 Messages Rule): Since this is Message #${currentMessageNumber} of the first 4 opening turns, put heavy focus on directly answering the Host Prompt Topic ("${topic}")${
+        latestHostGuidance ? ` and Table Host Guidance ("${latestHostGuidance}")` : ''
+      } alongside your reaction to the previous speaker.\n`
+    : isFifthMessageAnchor
     ? `IMPORTANT (5th Message Rule): Strongly consider and re-center the discussion around the Host Prompt Topic ("${topic}")${
         latestHostGuidance ? ` and Table Host Guidance ("${latestHostGuidance}")` : ''
       } while responding to the recent turns.\n`
