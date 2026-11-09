@@ -145,7 +145,8 @@ export const DEFAULT_SEATS: SeatConfig[] = [
     name: 'Seat 1 · North',
     model: 'gemini-3.5-flash-lite',
     persona: '',
-    defaultPersonaHint: 'Proponent & First-Principles Strategist — opens angles and builds strong constructive theses.',
+    defaultPersonaHint:
+      'Big-Picture Optimist — pitches the bold idea in simple, everyday language and explains why it could work.',
     accentColor: '#f59e0b', // Warm Amber
     avatarEmoji: '🍷',
   },
@@ -157,7 +158,8 @@ export const DEFAULT_SEATS: SeatConfig[] = [
     name: 'Seat 2 · East',
     model: 'gemini-3.5-flash-lite',
     persona: '',
-    defaultPersonaHint: 'Critical Examiner — probes weak spots, counter-examples, and hidden assumptions.',
+    defaultPersonaHint:
+      'Blunt Skeptic — pokes holes in the last point using plain common sense and real-life examples of what could go wrong.',
     accentColor: '#38bdf8', // Sky Blue
     avatarEmoji: '🥂',
   },
@@ -169,7 +171,8 @@ export const DEFAULT_SEATS: SeatConfig[] = [
     name: 'Seat 3 · South',
     model: 'gemini-3.5-flash-lite',
     persona: '',
-    defaultPersonaHint: 'Pragmatic Realist — grounds the debate in real-world execution, incentives, and economics.',
+    defaultPersonaHint:
+      'Practical Realist — focuses on money, human nature, and how this actually plays out for regular people day-to-day.',
     accentColor: '#34d399', // Emerald
     avatarEmoji: '☕',
   },
@@ -181,7 +184,8 @@ export const DEFAULT_SEATS: SeatConfig[] = [
     name: 'Seat 4 · West',
     model: 'gemini-3.5-flash-lite',
     persona: '',
-    defaultPersonaHint: 'Philosophical Synthesizer — connects deeper ethical, historical, and human implications.',
+    defaultPersonaHint:
+      'Big-Question Thinker — asks what is fair, who wins or loses, and connects the debate back to everyday human values.',
     accentColor: '#c084fc', // Violet
     avatarEmoji: '🕯️',
   },

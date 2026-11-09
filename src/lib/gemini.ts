@@ -101,64 +101,81 @@ function buildDiscoursePrompts(input: GenerateTurnInput): {
 
   const lengthDirective =
     responseLength === 'concise'
-      ? 'Keep your response punchy, sharp, and conversational: 2 to 4 sentences maximum (roughly 50–90 words), like a real remark across a dinner table.'
+      ? 'Keep it super short and punchy (35–65 words max): 1 quick reaction sentence followed by 2–3 short bullet points.'
       : responseLength === 'balanced'
-      ? 'Keep your response focused and engaging: 1 to 2 tight paragraphs (roughly 100–170 words). Make a clear point and directly address others at the table.'
-      : 'Provide a substantive, deeply reasoned contribution of 2 to 3 paragraphs (roughly 180–280 words), unpacking nuances, evidence, and counter-arguments.';
+      ? 'Keep it brief and scannable (65–110 words max): 1–2 plain-English sentences plus 3–4 crisp bullet points.'
+      : 'Keep it clear and structured (110–160 words max): a brief point followed by 4–5 detailed bullet points in plain language.';
 
   const effectivePersona = activeSeat.persona.trim()
     ? activeSeat.persona.trim()
     : activeSeat.defaultPersonaHint;
 
+  // IMPORTANT: Other seats' internal personas/instructions are strictly private.
+  // Each seat only knows the names/seat numbers of who else is at the table, plus what they say out loud.
   const rosterDescription = enabledSeats
     .map((s) => {
-      const who = s.role === 'human' ? 'Human Participant at the table' : `AI (${s.model})`;
-      const p = s.persona.trim() ? s.persona.trim() : s.defaultPersonaHint;
-      const marker = s.id === activeSeat.id ? ' <-- YOU ARE SPEAKING NOW' : '';
-      return `- Seat ${s.id} (${s.name}) [${who}]: ${p}${marker}`;
+      const marker = s.id === activeSeat.id ? ' (YOU)' : '';
+      return `- Seat ${s.id}: ${s.name}${marker}`;
     })
     .join('\n');
 
-  const systemInstruction = `You are "${activeSeat.name}" sitting at Seat ${activeSeat.id} of "Dining Table AI", an intellectual dinner-table discourse simulation.
+  const systemInstruction = `You are "${activeSeat.name}" sitting at Seat ${activeSeat.id} of "Dining Table AI", a lively dinner-table debate.
 
-DEBATE TOPIC AT THE TABLE:
+DEBATE TOPIC:
 "${topic}"
 
-SEATED PARTICIPANTS AROUND THE TABLE:
+PEOPLE AT THE TABLE (You only know what others say out loud, NOT their internal thoughts or hidden personas):
 ${rosterDescription}
 
-YOUR ROLE & PERSPECTIVE:
+YOUR PRIVATE THINKING STYLE & STANCE (Known ONLY to you):
 ${effectivePersona}
 
-DINNER-TABLE DISCOURSE RULES:
-1. Speak directly in the first person as ${activeSeat.name}. Do NOT prefix your response with your name or "[Seat ${activeSeat.id}]:".
-2. Treat this as a live, dynamic conversation around a dining table: directly reference, challenge, refine, or build on specific points made by previous speakers by name when history exists.
-3. Avoid generic filler openings ("Thank you", "That's a great point", "As an AI"). Dive straight into your argument, counter-example, or provocative question.
-4. Maintain intellectual distinctiveness from the other seats so the table doesn't collapse into bland agreement.
-5. ${lengthDirective}`;
+HOW TO SPEAK & FORMAT YOUR RESPONSE:
+1. USE PLAIN LAYMAN'S ENGLISH: Talk like a sharp, everyday person at a dinner table. Avoid big academic words, jargon, or stiff essay language. Use simple, relatable examples.
+2. BE BRIEF & LESS VERBOSE: Cut all fluff. Never say "Thank you", "That's a great point", or "As an AI". Jump straight into your point.
+3. USE BULLET POINTS OFTEN: Format the core of your response using short, easy-to-scan bullet points ("- ") so your arguments are quick to read.
+4. PRIORITIZE THE LAST 1–2 MESSAGES + TRACK DEVELOPING THREADS:
+   - Put most of your focus on directly reacting to the LAST 1–2 messages just spoken at the table.
+   - Keep earlier messages in mind so you don't repeat points, and only reach back to an earlier message if you are continuing a developing line of reasoning or calling out a contradiction.
+5. Speak in the first person as ${activeSeat.name}. Do NOT prefix your response with your name or "[Seat ${activeSeat.id}]:".
+6. ${lengthDirective}`;
 
-  let transcriptText = '';
+  let transcriptSection = '';
   if (history.length === 0) {
-    transcriptText =
-      '(No one has spoken yet. You have the opening remarks at the table for Round 1. Frame the debate boldly and stake out your initial position!)';
+    transcriptSection =
+      '(No one has spoken yet. Kick off Round 1 with a short, plain-English take and 2–3 bullet points!)';
   } else {
-    transcriptText = history
-      .map((msg) => {
-        if (msg.role === 'moderator') {
-          return `[Table Host / Moderator Guidance]: ${msg.content}`;
-        }
-        return `[Round ${msg.round} · ${msg.speakerName} (Seat ${msg.seatId})]: ${msg.content}`;
-      })
-      .join('\n\n');
+    const recentCount = Math.min(2, history.length);
+    const earlierMessages = history.slice(0, history.length - recentCount);
+    const latestMessages = history.slice(history.length - recentCount);
+
+    const formatMsg = (msg: DiscourseMessage) => {
+      if (msg.role === 'moderator') {
+        return `[Table Host / Moderator Guidance]: ${msg.content}`;
+      }
+      return `[Round ${msg.round} · ${msg.speakerName} (Seat ${msg.seatId})]:\n${msg.content}`;
+    };
+
+    const earlierBlock =
+      earlierMessages.length > 0
+        ? `EARLIER SPOKEN MESSAGES AT THE TABLE (Keep in mind for context & developing lines of reasoning):\n${earlierMessages
+            .map(formatMsg)
+            .join('\n\n')}\n\n`
+        : '';
+
+    const latestBlock = `LAST ${latestMessages.length} SPOKEN MESSAGE(S) (Put your primary focus on responding to these!):\n${latestMessages
+      .map(formatMsg)
+      .join('\n\n')}`;
+
+    transcriptSection = `${earlierBlock}${latestBlock}`;
   }
 
   const userPrompt = `CURRENT ROUND: Round ${round}
 TOPIC: "${topic}"
 
-DISCOURSE TRANSCRIPT SO FAR:
-${transcriptText}
+${transcriptSection}
 
-Now it is your turn to speak at the dining table as ${activeSeat.name} (Seat ${activeSeat.id}). Deliver your response:`;
+Your turn as ${activeSeat.name} (Seat ${activeSeat.id}). Reply in plain layman's terms using short bullet points:`;
 
   return { systemInstruction, userPrompt };
 }

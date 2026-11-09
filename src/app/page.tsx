@@ -675,9 +675,9 @@ export default function DiningTablePage() {
                 value={responseLength}
                 onChange={(e) => setResponseLength(e.target.value as ResponseLength)}
               >
-                <option value="concise">Concise (2–4 sentences)</option>
-                <option value="balanced">Balanced (1–2 paragraphs)</option>
-                <option value="deep">Deep Dive (2–3 paragraphs)</option>
+                <option value="concise">Concise (Short + 2–3 bullets)</option>
+                <option value="balanced">Balanced (Brief + 3–4 bullets)</option>
+                <option value="deep">Deep Dive (4–5 detailed bullets)</option>
               </select>
             </label>
           </div>
