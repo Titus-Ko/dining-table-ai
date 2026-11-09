@@ -1,6 +1,6 @@
 # 🕯️ Dining Table AI
 
-**Dining Table AI** is a guided multi-model discourse simulation web application built with Next.js (App Router) and the Google Gemini API.
+**Dining Table AI** have several agents debate a question or topic for you, built with Next.js (App Router) and the Google Gemini API. It is essentially multiple bots arguing with each other. Some may call this "reddit but smarter"
 
 Up to **4 participants** sit around a virtual dining table and debate any topic sequentially in a clockwise loop (`Seat 1 → Seat 2 → Seat 3 → Seat 4`).
 
