@@ -13,22 +13,10 @@ export interface GeminiModelOption {
 
 export const GEMINI_MODEL_OPTIONS: GeminiModelOption[] = [
   {
-    id: 'gemini-3.8-flash',
-    label: 'Gemini 3.8 Flash',
-    badge: '3.8 Flash',
-    description: 'Frontier high-speed reasoning & sharp synthesis',
-  },
-  {
-    id: 'gemini-3.7-flash',
-    label: 'Gemini 3.7 Flash',
-    badge: '3.7 Flash',
-    description: 'Balanced analytical depth & nuanced rhetoric',
-  },
-  {
-    id: 'gemini-3.6-flash',
-    label: 'Gemini 3.6 Flash',
-    badge: '3.6 Flash',
-    description: 'Fast, structured multi-turn discourse',
+    id: 'gemini-3.5-flash-lite',
+    label: 'Gemini 3.5 Flash Lite',
+    badge: '3.5 Flash Lite',
+    description: 'Ultra-fast, lightweight default for rapid table discourse',
   },
   {
     id: 'gemini-3.5-flash',
@@ -37,16 +25,40 @@ export const GEMINI_MODEL_OPTIONS: GeminiModelOption[] = [
     description: 'Rapid conversational responses',
   },
   {
-    id: 'gemini-2.5-pro',
-    label: 'Gemini 2.5 Pro',
-    badge: '2.5 Pro',
-    description: 'Deep reasoning & first-principles argumentation',
+    id: 'gemini-3.6-flash',
+    label: 'Gemini 3.6 Flash',
+    badge: '3.6 Flash',
+    description: 'Fast, structured multi-turn discourse',
+  },
+  {
+    id: 'gemini-3.7-flash',
+    label: 'Gemini 3.7 Flash',
+    badge: '3.7 Flash',
+    description: 'Balanced analytical depth & nuanced rhetoric',
+  },
+  {
+    id: 'gemini-3.8-flash',
+    label: 'Gemini 3.8 Flash',
+    badge: '3.8 Flash',
+    description: 'Frontier high-speed reasoning & sharp synthesis',
+  },
+  {
+    id: 'gemini-2.5-flash-lite',
+    label: 'Gemini 2.5 Flash Lite',
+    badge: '2.5 Flash Lite',
+    description: 'Low-latency 2.5 Flash Lite',
   },
   {
     id: 'gemini-2.5-flash',
     label: 'Gemini 2.5 Flash',
     badge: '2.5 Flash',
     description: 'Classic fast multimodal & text model',
+  },
+  {
+    id: 'gemini-2.5-pro',
+    label: 'Gemini 2.5 Pro',
+    badge: '2.5 Pro',
+    description: 'Deep reasoning & first-principles argumentation',
   },
   {
     id: 'gemini-2.0-flash',
@@ -131,7 +143,7 @@ export const DEFAULT_SEATS: SeatConfig[] = [
     enabled: true,
     role: 'ai',
     name: 'Seat 1 · North',
-    model: 'gemini-3.8-flash',
+    model: 'gemini-3.5-flash-lite',
     persona: '',
     defaultPersonaHint: 'Proponent & First-Principles Strategist — opens angles and builds strong constructive theses.',
     accentColor: '#f59e0b', // Warm Amber
@@ -143,7 +155,7 @@ export const DEFAULT_SEATS: SeatConfig[] = [
     enabled: true,
     role: 'ai',
     name: 'Seat 2 · East',
-    model: 'gemini-3.7-flash',
+    model: 'gemini-3.5-flash-lite',
     persona: '',
     defaultPersonaHint: 'Critical Examiner — probes weak spots, counter-examples, and hidden assumptions.',
     accentColor: '#38bdf8', // Sky Blue
@@ -155,7 +167,7 @@ export const DEFAULT_SEATS: SeatConfig[] = [
     enabled: true,
     role: 'ai',
     name: 'Seat 3 · South',
-    model: 'gemini-3.6-flash',
+    model: 'gemini-3.5-flash-lite',
     persona: '',
     defaultPersonaHint: 'Pragmatic Realist — grounds the debate in real-world execution, incentives, and economics.',
     accentColor: '#34d399', // Emerald
@@ -167,7 +179,7 @@ export const DEFAULT_SEATS: SeatConfig[] = [
     enabled: true,
     role: 'ai',
     name: 'Seat 4 · West',
-    model: 'gemini-3.5-flash',
+    model: 'gemini-3.5-flash-lite',
     persona: '',
     defaultPersonaHint: 'Philosophical Synthesizer — connects deeper ethical, historical, and human implications.',
     accentColor: '#c084fc', // Violet

@@ -1,34 +1,76 @@
+import fs from 'fs';
+import path from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { DiscourseMessage, ResponseLength, SeatConfig } from '@/types/discourse';
 
 /**
  * Retrieve the single configured GEMINI_API_KEY for Dining Table AI from .env.local.
+ * Reads directly from disk first so edits to .env.local take effect immediately without restarting the dev server.
  */
 export function getConfiguredGeminiKey(): string | null {
-  const val = process.env.GEMINI_API_KEY?.trim();
-  if (
-    !val ||
-    val === 'your_actual_api_key_here' ||
-    val === 'your_gemini_api_key_here'
-  ) {
-    return null;
+  const candidateFiles = [
+    path.resolve(process.cwd(), 'dining-table-ai', '.env.local'),
+    path.resolve(process.cwd(), '.env.local'),
+  ];
+
+  for (const filePath of candidateFiles) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const lines = content.split(/\r?\n/);
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line || line.startsWith('#')) continue;
+          const match = line.match(/^GEMINI_API_KEY\s*=\s*(.+)$/);
+          if (match) {
+            const val = match[1].trim().replace(/^['"]|['"]$/g, '');
+            if (
+              val &&
+              val !== 'your_actual_api_key_here' &&
+              val !== 'your_gemini_api_key_here'
+            ) {
+              return val;
+            }
+          }
+        }
+        // Also allow if the user pasted the raw key on a line by itself
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (line && !line.startsWith('#') && !line.includes('=')) {
+            return line;
+          }
+        }
+      }
+    } catch {
+      // Ignore file read errors and fall back to process.env
+    }
   }
-  return val;
+
+  const envVal = process.env.GEMINI_API_KEY?.trim();
+  if (
+    envVal &&
+    envVal !== 'your_actual_api_key_here' &&
+    envVal !== 'your_gemini_api_key_here'
+  ) {
+    return envVal;
+  }
+  return null;
 }
 
 const unavailableModels = new Set<string>();
 
 function getModelFallbackChain(requestedModel: string): string[] {
-  const clean = (requestedModel || 'gemini-2.5-flash').trim();
+  const clean = (requestedModel || 'gemini-3.5-flash-lite').trim();
   const fallbacks = [
     clean,
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
-    'gemini-2.0-flash',
-    'gemini-3.8-flash',
-    'gemini-3.7-flash',
-    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
     'gemini-3.5-flash',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
+    'gemini-3.8-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
   ];
   return Array.from(new Set(fallbacks)).filter((m) => !unavailableModels.has(m));
 }
