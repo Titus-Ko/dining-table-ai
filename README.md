@@ -1,6 +1,10 @@
 # 🕯️ Dining Table AI
 
-**Dining Table AI** have several agents debate a question or topic for you, built with Next.js (App Router) and the Google Gemini API. It is essentially multiple bots arguing with each other. Some may call this "reddit but smarter"
+**Dining Table AI** have several agents debate a question or topic for you, built with Next.js (App Router) and the Google Gemini API. It is essentially multiple bots arguing with each other. Some may call this "Reddit but smarter"
+Each agent holds an internal monologue, an essential and unique part of the system that allows them to hold stances, think, and even form prejudices against others specifically.
+You can join as a member of this argument.
+Podcast mode also allows you to listen to what their saying
+
 
 Up to **4 participants** sit around a virtual dining table and debate any topic sequentially in a clockwise loop (`Seat 1 → Seat 2 → Seat 3 → Seat 4`).
 
