@@ -13,8 +13,8 @@ import {
 import styles from './page.module.css';
 
 export default function DiningTablePage() {
-  // Debate Topic & Configuration
-  const [topic, setTopic] = useState<string>(SAMPLE_TOPICS[0]);
+  // Debate Topic & Configuration (starts blank so no sample topic is mixed in unless clicked)
+  const [topic, setTopic] = useState<string>('');
   const [seats, setSeats] = useState<SeatConfig[]>(DEFAULT_SEATS);
   const [responseLength, setResponseLength] = useState<ResponseLength>('concise');
   const [maxRounds, setMaxRounds] = useState<number>(3); // 0 = unlimited
@@ -102,11 +102,19 @@ export default function DiningTablePage() {
     [maxRounds]
   );
 
+  // Effective topic: uses top Topic input, or falls back to the latest Table Host Guidance note
+  const latestHostNote = useMemo(() => {
+    const notes = messages.filter((m) => m.role === 'moderator');
+    return notes.length > 0 ? notes[notes.length - 1].content : '';
+  }, [messages]);
+
+  const effectiveTopic = topic.trim() || latestHostNote.trim();
+
   // Trigger a single AI turn for the active seat
   const executeAiTurn = useCallback(async () => {
     if (!activeSeat || activeSeat.role !== 'ai' || isGenerating) return;
-    if (!topic.trim()) {
-      setErrorMsg('Please enter a debate topic at the top before starting.');
+    if (!effectiveTopic) {
+      setErrorMsg('Please enter a debate topic at the top (or send a Table Host Guidance note below) before starting.');
       setIsAutoLooping(false);
       return;
     }
@@ -119,7 +127,7 @@ export default function DiningTablePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          topic: topic.trim(),
+          topic: effectiveTopic,
           activeSeat,
           allSeats: seats,
           history: messages,
@@ -163,7 +171,7 @@ export default function DiningTablePage() {
   }, [
     activeSeat,
     isGenerating,
-    topic,
+    effectiveTopic,
     seats,
     messages,
     currentRound,
@@ -244,6 +252,12 @@ export default function DiningTablePage() {
       advanceTableTurn(safePointer, currentRound, enabledSeats.length);
     } else {
       // Moderator / Table Host guidance note
+      const spokenSoFar = messages.filter((m) => m.role !== 'moderator').length;
+      // If no one has spoken yet (or topic is empty), also set the main topic to this Host Guidance
+      // so an old top-bar topic is never mixed in!
+      if (spokenSoFar === 0 || !topic.trim()) {
+        setTopic(trimmed);
+      }
       const hostMsg: DiscourseMessage = {
         id: `${Date.now()}-moderator`,
         seatId: 0,
@@ -266,10 +280,11 @@ export default function DiningTablePage() {
     advanceTableTurn(safePointer, currentRound, enabledSeats.length);
   };
 
-  // Reset the discourse transcript & rounds
+  // Reset the discourse transcript, topic & rounds
   const handleResetDebate = () => {
     setIsAutoLooping(false);
     setMessages([]);
+    setTopic('');
     setCurrentRound(1);
     setTurnPointer(0);
     setErrorMsg(null);
@@ -608,7 +623,7 @@ export default function DiningTablePage() {
                 }
                 setIsAutoLooping((prev) => !prev);
               }}
-              disabled={!topic.trim()}
+              disabled={!effectiveTopic}
             >
               {isAutoLooping ? '⏸ Pause Auto-Loop' : messages.length > 0 ? '▶ Resume Auto-Loop' : '▶ Start Debate Loop'}
             </button>
@@ -617,7 +632,7 @@ export default function DiningTablePage() {
               type="button"
               className={styles.secondaryBtn}
               onClick={handleManualNextTurn}
-              disabled={isGenerating || !topic.trim() || isHumanTurn}
+              disabled={isGenerating || !effectiveTopic || isHumanTurn}
               title={
                 isHumanTurn
                   ? 'It is currently your turn! Type your response in the composer below.'
@@ -631,7 +646,7 @@ export default function DiningTablePage() {
               type="button"
               className={styles.secondaryBtn}
               onClick={handleResetDebate}
-              disabled={messages.length === 0 && currentRound === 1 && turnPointer === 0}
+              disabled={messages.length === 0 && !topic.trim() && currentRound === 1 && turnPointer === 0}
             >
               ↺ Reset Table
             </button>
@@ -714,8 +729,8 @@ export default function DiningTablePage() {
                   ? `Waiting for ${activeSeat.name}`
                   : `Round ${currentRound} · Ready`}
               </div>
-              <div className={styles.tableTopicText} title={topic}>
-                “{topic || 'No topic set'}”
+              <div className={styles.tableTopicText} title={effectiveTopic}>
+                “{effectiveTopic || 'Enter a topic or send Host Guidance to begin'}”
               </div>
 
               <div className={styles.tableTurnOrder}>

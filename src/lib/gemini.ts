@@ -132,27 +132,27 @@ function buildDiscoursePrompts(input: GenerateTurnInput): {
     })
     .join('\n');
 
+  // If Table Host Guidance was sent, it takes priority as the primary subject if it differs or steers the topic
+  const primarySubject = latestHostGuidance || topic;
+
   const hostPriorityBlock = latestHostGuidance
-    ? `ACTIVE TABLE HOST GUIDANCE (HIGHEST PRIORITY — MUST STEER YOUR RESPONSE):
-"${latestHostGuidance}"
-(All active host notes so far: ${hostGuidanceMessages.map((m) => `"${m.content}"`).join(' -> ')})`
-    : `ACTIVE TABLE HOST GUIDANCE:
-Follow the main Host Prompt Topic closely: "${topic}"`;
+    ? `ACTIVE TABLE HOST GUIDANCE (HIGHEST PRIORITY — THIS OVERRIDES ANY PRIOR TOPIC):
+"${latestHostGuidance}"${
+        topic && topic.trim().toLowerCase() !== latestHostGuidance.trim().toLowerCase()
+          ? `\n(Background table topic: "${topic}" — ONLY reference if relevant to the Host Guidance above; otherwise focus 100% on the Active Table Host Guidance!)`
+          : ''
+      }`
+    : `ACTIVE TABLE HOST TOPIC (HIGHEST PRIORITY):
+"${topic}"`;
 
   const fifthMessageDirective = isOpeningFour
     ? `\nCRITICAL OPENING ROUND RULE (Message #${currentMessageNumber} of First 4):
-Because this is one of the FIRST 4 MESSAGES at the table, you MUST heavily focus on directly answering the core Host Prompt Topic ("${topic}")${
-        latestHostGuidance ? ` and the Table Host Guidance ("${latestHostGuidance}")` : ''
-      }. Do NOT drift onto a side tangent from the previous speaker—give your seat's direct, plain-English take on the Host Prompt Topic while briefly reacting to the last speaker.`
+Because this is one of the FIRST 4 MESSAGES at the table, you MUST heavily focus on directly answering the active Host Topic / Guidance ("${primarySubject}"). Do NOT drift onto a side tangent—give your seat's direct, plain-English take on "${primarySubject}" while briefly reacting to the last speaker.`
     : isFifthMessageAnchor
     ? `\nCRITICAL 5TH-MESSAGE CHECKPOINT (Message #${currentMessageNumber}):
-Because this is the ${currentMessageNumber}th spoken message at the table (every 5th message rule), you MUST strongly re-anchor the discussion to the Host Prompt Topic ("${topic}")${
-        latestHostGuidance ? ` and the Table Host Guidance ("${latestHostGuidance}")` : ''
-      }. Pull the table back from any narrow side-tangents, directly address the core host prompt, and connect the recent points directly to what the Host asked.`
+Because this is the ${currentMessageNumber}th spoken message at the table (every 5th message rule), you MUST strongly re-anchor the discussion to "${primarySubject}". Pull the table back from any narrow side-tangents and directly address what the Host asked.`
     : `\nHOST TOPIC ALIGNMENT:
-Always keep the Host Prompt Topic ("${topic}")${
-        latestHostGuidance ? ` and the Table Host Guidance ("${latestHostGuidance}")` : ''
-      } in consideration while responding, ensuring the conversation never drifts off-topic.`;
+Always keep "${primarySubject}" in consideration while responding, ensuring the conversation never drifts off-topic.`;
 
   const systemInstruction = `You are "${activeSeat.name}" sitting at Seat ${activeSeat.id} of "Dining Table AI", a lively dinner-table debate.
 
