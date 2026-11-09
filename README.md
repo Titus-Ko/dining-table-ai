@@ -38,3 +38,4 @@ Up to **4 participants** sit around a virtual dining table and debate any topic 
    npm run dev
    ```
    Open [http://localhost:3000](http://localhost:3000) in your browser.
+

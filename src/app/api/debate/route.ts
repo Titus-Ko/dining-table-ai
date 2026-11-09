@@ -1,19 +1,16 @@
 import { NextResponse } from 'next/server';
 import {
   generateDiscourseTurn,
-  getFreeGeminiApiKeys,
-  getPaidGeminiApiKeys,
+  getConfiguredGeminiKey,
   type GenerateTurnInput,
 } from '@/lib/gemini';
 
 export async function GET() {
-  const freeKeys = getFreeGeminiApiKeys();
-  const paidKeys = getPaidGeminiApiKeys();
-  const totalKeys = freeKeys.length + paidKeys.length;
+  const key = getConfiguredGeminiKey();
 
   return NextResponse.json({
-    hasServerKey: totalKeys > 0,
-    keyCount: totalKeys,
+    hasServerKey: Boolean(key),
+    keyCount: key ? 1 : 0,
   });
 }
 

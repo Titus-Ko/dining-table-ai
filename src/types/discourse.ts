@@ -182,3 +182,4 @@ export const SAMPLE_TOPICS: string[] = [
   'Should longevity biotech aim to eliminate biological aging completely, regardless of social disruption?',
   'In university education, should traditional lectures and exams be replaced entirely by Socratic AI tutors and oral defense?',
 ];
+

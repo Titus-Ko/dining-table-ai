@@ -1,154 +1,36 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { DiscourseMessage, ResponseLength, SeatConfig } from '@/types/discourse';
 
-export function getFreeGeminiApiKeys(): string[] {
-  const envVars = [
-    process.env.GEMINI_FREE_API_KEYS,
-    process.env.GEMINI_FREE_API_KEY,
-    process.env.GEMINI_FREE_KEY,
-    process.env.GEMINI_FREE_KEY_1,
-    process.env.GEMINI_FREE_KEY_2,
-    process.env.GEMINI_FREE_KEY_3,
-    process.env.GEMINI_FREE_KEY_4,
-    process.env.GEMINI_FREE_KEY_5,
-    process.env.GEMINI_API_KEY_3,
-    process.env.GEMINI_API_KEY_2,
-    process.env.GEMINI_API_KEY2,
-    process.env.GEMINI_KEY_2,
-    process.env.GOOGLE_API_KEY_2,
-    process.env.NEXT_PUBLIC_GEMINI_API_KEY_2,
-    process.env.GEMINI_API_KEY,
-    process.env.GOOGLE_API_KEY,
-    process.env.NEXT_PUBLIC_GEMINI_API_KEY,
-  ];
-
-  const keys: string[] = [];
-  for (const val of envVars) {
-    if (
-      val &&
-      typeof val === 'string' &&
-      val.trim() &&
-      val.trim() !== 'your_actual_api_key_here' &&
-      val.trim() !== 'your_gemini_api_key_here' &&
-      val.trim() !== 'your_optional_backup_gemini_key_here'
-    ) {
-      val.split(',').forEach((k) => {
-        const cleaned = k.trim();
-        if (cleaned && !keys.includes(cleaned)) {
-          keys.push(cleaned);
-        }
-      });
-    }
+/**
+ * Retrieve the single configured GEMINI_API_KEY for Dining Table AI from .env.local.
+ */
+export function getConfiguredGeminiKey(): string | null {
+  const val = process.env.GEMINI_API_KEY?.trim();
+  if (
+    !val ||
+    val === 'your_actual_api_key_here' ||
+    val === 'your_gemini_api_key_here'
+  ) {
+    return null;
   }
-  return keys.reverse();
+  return val;
 }
 
-export function getPaidGeminiApiKeys(): string[] {
-  const envVars = [
-    process.env.GEMINI_PAID_API_KEYS,
-    process.env.GEMINI_PAID_API_KEY,
-    process.env.GEMINI_PAID_KEY,
-    process.env.GEMINI_PAID_KEY_1,
-    process.env.GEMINI_PAID_KEY_2,
-    process.env.GEMINI_PAID_KEY_3,
-    process.env.GEMINI_API_KEY_PAID,
-    process.env.GEMINI_KEY_PAID,
-    process.env.PAID_GEMINI_API_KEY,
-    process.env.GEMINI_BACKUP_API_KEY,
-    process.env.GEMINI_BACKUP_PAID_API_KEY,
-  ];
-
-  const keys: string[] = [];
-  const freeKeys = getFreeGeminiApiKeys();
-  for (const val of envVars) {
-    if (
-      val &&
-      typeof val === 'string' &&
-      val.trim() &&
-      val.trim() !== 'your_actual_api_key_here' &&
-      val.trim() !== 'your_gemini_api_key_here'
-    ) {
-      val.split(',').forEach((k) => {
-        const cleaned = k.trim();
-        if (cleaned && !keys.includes(cleaned) && !freeKeys.includes(cleaned)) {
-          keys.push(cleaned);
-        }
-      });
-    }
-  }
-  return keys.reverse();
-}
-
-const exhaustedKeys = new Set<string>();
-const dailyExhaustedKeyModels = new Set<string>();
-
-function classifyError(errMsg: string): 'permanent' | 'daily_quota' | 'rate_limit' | 'transient' | 'fatal' {
-  const lower = errMsg.toLowerCase();
-  if (
-    lower.includes('perday') ||
-    lower.includes('per_day') ||
-    lower.includes('requests per day') ||
-    lower.includes('generaterequestsperday')
-  ) {
-    return 'daily_quota';
-  }
-  if (
-    lower.includes('retry in') ||
-    lower.includes('retrydelay') ||
-    lower.includes('per minute') ||
-    lower.includes('per_minute')
-  ) {
-    return 'rate_limit';
-  }
-  if (
-    lower.includes('402') ||
-    lower.includes('payment required') ||
-    lower.includes('prepayment credits are depleted') ||
-    lower.includes('credits are depleted') ||
-    lower.includes('account has been suspended') ||
-    lower.includes('api_key_invalid') ||
-    lower.includes('api key not valid') ||
-    lower.includes('403') ||
-    lower.includes('forbidden')
-  ) {
-    return 'permanent';
-  }
-  if (
-    lower.includes('429') ||
-    lower.includes('too many requests') ||
-    lower.includes('resource_exhausted') ||
-    lower.includes('rate limit')
-  ) {
-    return 'rate_limit';
-  }
-  if (
-    lower.includes('503') ||
-    lower.includes('500') ||
-    lower.includes('502') ||
-    lower.includes('504') ||
-    lower.includes('service unavailable') ||
-    lower.includes('high demand') ||
-    lower.includes('fetch failed') ||
-    lower.includes('network') ||
-    lower.includes('timeout')
-  ) {
-    return 'transient';
-  }
-  return 'fatal';
-}
+const unavailableModels = new Set<string>();
 
 function getModelFallbackChain(requestedModel: string): string[] {
-  const clean = (requestedModel || 'gemini-3.7-flash').trim();
+  const clean = (requestedModel || 'gemini-2.5-flash').trim();
   const fallbacks = [
     clean,
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+    'gemini-2.0-flash',
     'gemini-3.8-flash',
     'gemini-3.7-flash',
     'gemini-3.6-flash',
     'gemini-3.5-flash',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
   ];
-  return Array.from(new Set(fallbacks));
+  return Array.from(new Set(fallbacks)).filter((m) => !unavailableModels.has(m));
 }
 
 export interface GenerateTurnInput {
@@ -243,85 +125,50 @@ export async function generateDiscourseTurn(input: GenerateTurnInput): Promise<G
   const startTime = Date.now();
   const { systemInstruction, userPrompt } = buildDiscoursePrompts(input);
 
-  const customKey = input.customApiKey?.trim();
-  const trialKeys: string[] = [];
+  const apiKey = input.customApiKey?.trim() || getConfiguredGeminiKey();
 
-  if (customKey) {
-    trialKeys.push(customKey);
-  } else {
-    const free = getFreeGeminiApiKeys().filter((k) => !exhaustedKeys.has(k));
-    const paid = getPaidGeminiApiKeys().filter((k) => !exhaustedKeys.has(k));
-    trialKeys.push(...free, ...paid);
-  }
-
-  if (trialKeys.length === 0) {
+  if (!apiKey) {
     throw new Error(
-      'No Gemini API key found. Add GEMINI_API_KEY to .env.local or enter your API key in the top-right API Key settings.'
+      'No Gemini API key found. Set GEMINI_API_KEY in dining-table-ai/.env.local or click "🔑 API Key" in the top-right corner of the app.'
     );
   }
 
+  const genAI = new GoogleGenerativeAI(apiKey);
   const candidateModels = getModelFallbackChain(input.activeSeat.model);
   let lastError: unknown = null;
 
   for (const currentModel of candidateModels) {
-    for (let keyIdx = 0; keyIdx < trialKeys.length; keyIdx++) {
-      const apiKey = trialKeys[keyIdx];
-      if (!customKey && exhaustedKeys.has(apiKey)) continue;
-      if (!customKey && dailyExhaustedKeyModels.has(`${apiKey}:${currentModel}`)) continue;
-
-      const genAI = new GoogleGenerativeAI(apiKey);
+    try {
       const model = genAI.getGenerativeModel({
         model: currentModel,
         systemInstruction,
       });
 
-      for (let retry = 0; retry < 2; retry++) {
-        try {
-          const result = await model.generateContent(userPrompt);
-          const text = result.response.text().trim();
-          if (!text) {
-            throw new Error(`Empty response from ${currentModel}`);
-          }
-          return {
-            content: text,
-            requestedModel: input.activeSeat.model,
-            actualModel: currentModel,
-            latencyMs: Date.now() - startTime,
-          };
-        } catch (err: unknown) {
-          lastError = err;
-          const errMsg = err instanceof Error ? err.message : String(err);
-          const kind = classifyError(errMsg);
+      const result = await model.generateContent(userPrompt);
+      const text = result.response.text().trim();
+      if (!text) {
+        throw new Error(`Empty response from ${currentModel}`);
+      }
 
-          if (kind === 'permanent' && !customKey) {
-            exhaustedKeys.add(apiKey);
-            break;
-          }
-          if (kind === 'daily_quota' && !customKey) {
-            dailyExhaustedKeyModels.add(`${apiKey}:${currentModel}`);
-            break;
-          }
-          if (kind === 'rate_limit') {
-            if (keyIdx < trialKeys.length - 1) {
-              break; // try next key immediately
-            }
-            if (retry === 0) {
-              await new Promise((r) => setTimeout(r, 1500));
-              continue;
-            }
-            break;
-          }
-          if (kind === 'transient' && retry === 0) {
-            await new Promise((r) => setTimeout(r, 1000));
-            continue;
-          }
-          break; // try next key or fallback model
-        }
+      return {
+        content: text,
+        requestedModel: input.activeSeat.model,
+        actualModel: currentModel,
+        latencyMs: Date.now() - startTime,
+      };
+    } catch (err: unknown) {
+      lastError = err;
+      const errMsg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+      if (errMsg.includes('api_key_invalid') || errMsg.includes('api key not valid') || errMsg.includes('403')) {
+        throw err;
+      }
+      if (errMsg.includes('404') || errMsg.includes('not found') || errMsg.includes('not supported')) {
+        unavailableModels.add(currentModel);
       }
     }
   }
 
   const finalMessage =
-    lastError instanceof Error ? lastError.message : 'All configured Gemini keys and fallback models failed.';
+    lastError instanceof Error ? lastError.message : 'Failed to generate response with the configured Gemini API key.';
   throw new Error(finalMessage);
 }
